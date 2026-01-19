@@ -17,6 +17,7 @@ Manually applying to jobs is repetitive, time-consuming, and error-prone. ApplyP
 - Automated form filling for standardized applications (LinkedIn Easy Apply)
 - Human-in-the-loop approval for custom or ambiguous questions
 - Local execution (no backend, no SaaS)
+- Persistent browser automation using Playwright with saved sessions
 
 ---
 
