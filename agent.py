@@ -189,9 +189,40 @@ def detect_and_fill_fields(page, form_filler, job_title="", company=""):
         "city, state, or zip code",
         "location"
     ]
+    
+    # Preferred email for selection from dropdowns
+    PREFERRED_EMAIL = "thomsonthejus@gmail.com"
 
     # Uncheck "Follow company" if present
     uncheck_follow_company(page)
+    
+    # Handle email dropdowns specifically (LinkedIn shows saved emails as dropdown)
+    email_selects = page.locator("select:visible")
+    for i in range(email_selects.count()):
+        try:
+            field = email_selects.nth(i)
+            field_id = field.get_attribute("id") or ""
+            label = page.locator(f"label[for='{field_id}']")
+            
+            if label.count() > 0:
+                label_text = label.first.inner_text().strip().lower()
+            else:
+                label_text = field.get_attribute("aria-label") or ""
+                label_text = label_text.lower()
+            
+            # Check if this is an email field
+            if "email" in label_text:
+                try:
+                    field.select_option(label=PREFERRED_EMAIL)
+                    print(f"   [Fill] Email dropdown -> '{PREFERRED_EMAIL}'")
+                except:
+                    try:
+                        field.select_option(value=PREFERRED_EMAIL)
+                        print(f"   [Fill] Email dropdown -> '{PREFERRED_EMAIL}'")
+                    except:
+                        pass
+        except:
+            continue
 
     # Text inputs
     text_inputs = page.locator("input[type='text']:visible, input:not([type]):visible")
