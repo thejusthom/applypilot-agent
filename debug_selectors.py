@@ -1,5 +1,5 @@
 """
-Debug script - will actually TRY to click things
+Debug script - Resume Selection Tester
 """
 from browser import BrowserManager
 import time
@@ -8,79 +8,76 @@ browser = BrowserManager()
 page = browser.launch()
 
 print("="*60)
-print("LinkedIn Click Tester")
+print("Resume Selection Tester")
 print("="*60)
 
-# TEST 1: Resume selection
-print("\n>>> TEST 1: RESUME SELECTION")
-print("Go to the RESUME step and press Enter...")
+print("\nGo to the RESUME step of an Easy Apply and press Enter...")
 input()
 
-# Try to expand
+# Step 1: Expand
+print("\n[Step 1] Expanding resume list...")
 expand_btn = page.locator("button:has-text('more resumes')")
-print(f"Expand button found: {expand_btn.count()}")
-if expand_btn.count() > 0:
-    print("Clicking expand...")
+if expand_btn.count() > 0 and expand_btn.first.is_visible():
     expand_btn.first.click()
+    print("  Clicked expand button")
     time.sleep(2)
-    print("Expanded!")
+else:
+    print("  No expand button found (already expanded?)")
 
-# Now find radios
-radios = page.locator("input[type='radio']:visible")
-print(f"\nVisible radios after expand: {radios.count()}")
+# Step 2: Find all resume cards and their actual names
+print("\n[Step 2] Finding all resumes...")
+radios = page.locator("input[type='radio'][id^='jobsDocumentCardToggle']:visible")
+print(f"  Found {radios.count()} resume radio buttons\n")
 
-# Get the page HTML around radios to understand structure
+resume_map = {}
 for i in range(radios.count()):
     radio = radios.nth(i)
     radio_id = radio.get_attribute("id")
     checked = radio.is_checked()
     
-    # Get outer HTML of parent
+    # Find the download button to get real filename
     try:
-        outer = radio.evaluate("el => el.parentElement.parentElement.parentElement.innerText.substring(0, 100)")
-        print(f"\n  Radio [{i}]: id={radio_id}, checked={checked}")
-        print(f"    Context: {outer.replace(chr(10), ' ')}")
+        # Go up to card container
+        card = radio.locator("xpath=ancestor::div[contains(@class, 'jobs-document-upload')]").first
+        if card:
+            download_btn = card.locator("button[aria-label*='Download']")
+            if download_btn.count() > 0:
+                aria = download_btn.first.get_attribute("aria-label")
+                # Extract filename from "Download resume Filename.pdf"
+                filename = aria.replace("Download resume ", "").strip() if aria else "Unknown"
+            else:
+                filename = "Unknown (no download btn)"
+        else:
+            filename = "Unknown (no card)"
     except Exception as e:
-        print(f"  Radio [{i}]: id={radio_id}, checked={checked}, context error: {e}")
+        filename = f"Error: {e}"
+    
+    status = "✓ SELECTED" if checked else ""
+    print(f"  [{i}] {filename} {status}")
+    resume_map[i] = filename
 
-# Ask which one to click
-print("\nWhich radio index to click? (or 'skip'): ", end="")
+# Step 3: Let user select one
+print("\n[Step 3] Which resume to select? Enter number (or 'skip'): ", end="")
 choice = input().strip()
+
 if choice != 'skip' and choice.isdigit():
     idx = int(choice)
-    radios.nth(idx).click()
-    print(f"Clicked radio {idx}!")
-    time.sleep(1)
-
-# TEST 2: Follow checkbox
-print("\n>>> TEST 2: FOLLOW CHECKBOX")
-print("Go to the REVIEW step (with Follow checkbox) and press Enter...")
-input()
-
-# Try direct ID
-follow_cb = page.locator("#follow-company-checkbox")
-print(f"#follow-company-checkbox found: {follow_cb.count()}")
-if follow_cb.count() > 0:
-    visible = follow_cb.first.is_visible()
-    checked = follow_cb.first.is_checked()
-    print(f"  visible={visible}, checked={checked}")
-    
-    if checked:
-        print("Attempting to uncheck...")
-        follow_cb.first.click()
-        time.sleep(1)
-        print(f"  Now checked: {follow_cb.first.is_checked()}")
-else:
-    # Try other methods
-    print("\nTrying alternative selectors...")
-    alts = [
-        "input[name='follow-company-checkbox']",
-        "input[id*='follow']",
-        "input[type='checkbox']:visible",
-    ]
-    for sel in alts:
-        els = page.locator(sel)
-        print(f"  {sel}: {els.count()} found")
+    if idx < radios.count():
+        radio = radios.nth(idx)
+        print(f"\n  Attempting to select: {resume_map.get(idx, 'Unknown')}")
+        
+        # Use JavaScript click
+        try:
+            radio.evaluate("el => el.click()")
+            time.sleep(1)
+            
+            # Verify
+            if radio.is_checked():
+                print("  ✓ SUCCESS! Resume selected.")
+            else:
+                print("  ✗ FAILED - radio not checked after click")
+        except Exception as e:
+            print(f"  ✗ ERROR: {e}")
 
 print("\n--- Done! Press Enter to close ---")
 input()
