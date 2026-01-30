@@ -1,0 +1,69 @@
+{
+  "known_fields": {
+    "What is your first name?": "Thejus",
+    "What is your last name?": "Thomson",
+    "Email": "tjthejus@gmail.com",
+    "Phone": "857-445-6819",
+    "Are you legally authorized to work in the United States?": "Yes",
+    "Will you now or in the future require sponsorship for employment visa status?": "No",
+    "How many years of experience do you have?": "3",
+    "How many years of experience do you have with Java?": "3",
+    "How many years of experience do you have with Python?": "3",
+    "LinkedIn Profile": "https://www.linkedin.com/in/thejusthomson/",
+    "What is your desired salary?": "Negotiable",
+    "Are you willing to relocate?": "Yes",
+    "When can you start?": "Immediately"
+  },
+  "unknown_fields": [
+    {
+      "question": "Search by title, skill, or company",
+      "field_type": "text",
+      "job_title": "React Full Stack Developer",
+      "company": "PTR Global",
+      "answer": null
+    },
+    {
+      "question": "Are you located within 120 miles of the New York, Atlanta, Jersey City, Toronto or Los Angeles office? If so, which location? \nAre you located within 120 miles of the New York, Atlanta, Jersey City, Toronto or Los Angeles office? If so, which location?",
+      "field_type": "select",
+      "job_title": "Software Engineer",
+      "company": "FanDuel",
+      "answer": "Yes, New York"
+    },
+    {
+      "question": "It is unlawful in Massachusetts to require or administer a lie detector test as a condition of employment or continued employment. An employer who violates this law shall be subject to criminal penalties and civil liability.\nIt is unlawful in Massachusetts to require or administer a lie detector test as a condition of employment or continued employment. An employer who violates this law shall be subject to criminal penalties and civil liability.",
+      "field_type": "select",
+      "job_title": "Software Engineer",
+      "company": "FanDuel",
+      "answer": null
+    },
+    {
+      "question": "Are you an employee of Flutter or a Flutter brand?\nAre you an employee of Flutter or a Flutter brand?\n \nRequired",
+      "field_type": "radio",
+      "job_title": "Software Engineer",
+      "company": "FanDuel",
+      "answer": null
+    },
+    {
+      "question": "Are you currently employed by PokerStars?\nAre you currently employed by PokerStars?\n \nRequired",
+      "field_type": "radio",
+      "job_title": "Software Engineer",
+      "company": "FanDuel",
+      "answer": null
+    },
+    {
+      "question": "How would you describe your gender identity? (mark all that apply)\nHow would you describe your gender identity? (mark all that apply)",
+      "field_type": "radio",
+      "job_title": "Software Engineer",
+      "company": "FanDuel",
+      "answer": null
+    },
+    {
+      "question": "How would you describe your racial/ethnic background? (mark all that apply)\nHow would you describe your racial/ethnic background? (mark all that apply)",
+      "field_type": "radio",
+      "job_title": "Software Engineer",
+      "company": "FanDuel",
+      "answer": null
+    }
+  ],
+  "field_log": []
+}

@@ -1,0 +1,51 @@
+{
+  "personal": {
+    "first_name": "Thejus",
+    "last_name": "Thomson",
+    "full_name": "Thejus Thomson",
+    "email": "tjthejus@gmail.com",
+    "phone": "857-445-6819",
+    "linkedin": "https://www.linkedin.com/in/thejusthomson/",
+    "github": "https://github.com/thejus-thomson",
+    "portfolio": "https://thejusthomson.netlify.app/",
+    "location": {
+      "city": "Boston",
+      "state": "Massachusetts",
+      "country": "United States",
+      "zip": "02119"
+    }
+  },
+  "work_authorization": {
+    "authorized_us": true,
+    "sponsorship_required": false,
+    "visa_status": "F-1 OPT",
+    "work_authorization_text": "Yes"
+  },
+  "education": {
+    "degree": "Master of Science",
+    "field": "Software Engineering",
+    "university": "Northeastern University",
+    "graduation_date": "December 2025",
+    "gpa": "3.8"
+  },
+  "experience": {
+    "years_of_experience": "3",
+    "most_recent_title": "Application Developer",
+    "most_recent_company": "IBM"
+  },
+  "skills": {
+    "primary": ["Java", "Python", "Spring Boot", "React", "TypeScript"],
+    "databases": ["PostgreSQL", "MongoDB", "SQLite"],
+    "tools": ["Git", "Docker", "AWS", "Jenkins"]
+  },
+  "common_answers": {
+    "willing_to_relocate": "Yes",
+    "start_date": "Immediately",
+    "salary_expectation": "Open to discussion",
+    "how_did_you_hear": "LinkedIn",
+    "gender": "Male",
+    "hispanic_latino": "No",
+    "veteran_status": "I am not a protected veteran",
+    "disability_status": "I do not have a disability"
+  }
+}

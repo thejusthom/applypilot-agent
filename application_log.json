@@ -1,0 +1,37 @@
+[
+  {
+    "timestamp": "2026-01-30T01:17:09.653627",
+    "job_title": "React Full Stack Developer",
+    "company": "PTR Global",
+    "status": "skipped",
+    "resume_type": "frontend"
+  },
+  {
+    "timestamp": "2026-01-30T01:19:33.937225",
+    "job_title": "NodeJS Developer",
+    "company": "Iris Software Inc.",
+    "status": "skipped",
+    "resume_type": "fullstack"
+  },
+  {
+    "timestamp": "2026-01-30T01:41:14.570789",
+    "job_title": "Java Developer with Drools",
+    "company": "Synechron",
+    "status": "submitted",
+    "resume_type": "backend"
+  },
+  {
+    "timestamp": "2026-01-30T01:42:14.906376",
+    "job_title": "Full Stack Engineer",
+    "company": "Harrison Clarke",
+    "status": "submitted",
+    "resume_type": "fullstack"
+  },
+  {
+    "timestamp": "2026-01-30T01:45:22.523263",
+    "job_title": "Software Engineer",
+    "company": "FanDuel",
+    "status": "submitted",
+    "resume_type": "fullstack"
+  }
+]
