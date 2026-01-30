@@ -117,13 +117,14 @@ class FormFiller:
         # No match found
         return None, "unknown"
 
-    def log_unknown_field(self, question, field_type, job_title="", company=""):
+    def log_unknown_field(self, question, field_type, job_title="", company="", options=None):
         """Log an unknown field for later review."""
         entry = {
             "question": question,
             "field_type": field_type,
             "job_title": job_title,
             "company": company,
+            "options": options or [],  # Store dropdown/radio options
             "answer": None
         }
 
@@ -133,6 +134,14 @@ class FormFiller:
             self.memory["unknown_fields"].append(entry)
             self._save_memory()
             print(f"   [Memory] Logged unknown field: '{question[:50]}...'")
+
+    def remove_unknown_field(self, question):
+        """Remove a field from unknown list."""
+        self.memory["unknown_fields"] = [
+            f for f in self.memory["unknown_fields"] 
+            if f["question"] != question
+        ]
+        self._save_memory()
 
     def learn_field(self, question, answer):
         """Add a new question-answer pair to memory."""

@@ -65,33 +65,19 @@ def check_already_applied(page):
 def uncheck_follow_company(page):
     """Uncheck the 'Follow company' checkbox if present."""
     try:
-        # Multiple possible selectors for the follow checkbox
-        follow_selectors = [
-            "input[id*='follow']",
-            "input[name*='follow']",
-            "label:has-text('Follow') input[type='checkbox']",
-            "input[type='checkbox'][id*='follow-company']",
-        ]
-        
-        for selector in follow_selectors:
-            checkbox = page.locator(selector)
-            if checkbox.count() > 0 and checkbox.first.is_visible():
-                if checkbox.first.is_checked():
-                    checkbox.first.uncheck()
-                    print("   [Form] Unchecked 'Follow company'")
-                    return True
-        
-        # Also try finding by label text
-        follow_label = page.locator("label:has-text('Follow')")
-        if follow_label.count() > 0 and follow_label.first.is_visible():
-            checkbox = follow_label.locator("input[type='checkbox']")
-            if checkbox.count() > 0 and checkbox.first.is_checked():
-                checkbox.first.uncheck()
+        # Direct ID selector - LinkedIn uses 'follow-company-checkbox'
+        checkbox = page.locator("#follow-company-checkbox")
+        if checkbox.count() > 0 and checkbox.first.is_visible():
+            if checkbox.first.is_checked():
+                # Use JavaScript click to bypass any overlay issues
+                checkbox.first.evaluate("el => el.click()")
                 print("   [Form] Unchecked 'Follow company'")
                 return True
-                
+            else:
+                print("   [Form] 'Follow company' already unchecked")
+                return True
     except Exception as e:
-        pass
+        print(f"   [Form] Follow checkbox error: {e}")
     
     return False
 
@@ -99,61 +85,69 @@ def uncheck_follow_company(page):
 def select_resume_in_dropdown(page, resume_dropdown_name):
     """
     Select the correct resume from LinkedIn's resume list.
-    LinkedIn shows resumes as rows with radio buttons on the right.
     """
     try:
         print(f"   [Resume] Looking for: {resume_dropdown_name}")
         
-        # LinkedIn shows resumes in a list, each with a radio button
-        # The structure is typically: div containing the filename text + a radio input
+        # FIRST: Expand the resume list if collapsed
+        expand_btn = page.locator("button:has-text('more resumes')")
+        if expand_btn.count() > 0 and expand_btn.first.is_visible():
+            expand_btn.first.click()
+            print("   [Resume] Expanded resume list")
+            random_sleep(1, 2)
         
-        # Method 1: Find the row containing our resume name and click its radio button
-        # Look for any element containing the exact resume filename
-        resume_rows = page.locator(f"div:has-text('{resume_dropdown_name}')")
+        # Find all visible radio buttons
+        radios = page.locator("input[type='radio'][id^='jobsDocumentCardToggle']:visible")
+        print(f"   [Resume] Found {radios.count()} resume radio buttons")
         
-        for i in range(resume_rows.count()):
-            row = resume_rows.nth(i)
-            if not row.is_visible():
+        # For each radio, check the download button's aria-label (it has the real filename)
+        for i in range(radios.count()):
+            radio = radios.nth(i)
+            radio_id = radio.get_attribute("id")
+            
+            try:
+                # The download button near this radio has aria-label with the actual filename
+                # e.g., "Download resume Thejus_Thomson_Resume.pdf"
+                # Get the parent card container
+                card = radio.locator("xpath=ancestor::div[contains(@class, 'jobs-document')]").first
+                if card:
+                    # Find the download button which has the real filename
+                    download_btn = card.locator("button[aria-label*='Download resume']")
+                    if download_btn.count() > 0:
+                        aria_label = download_btn.first.get_attribute("aria-label") or ""
+                        # aria_label is like "Download resume Thejus_Thomson_Resume.pdf"
+                        if resume_dropdown_name.lower() in aria_label.lower():
+                            if not radio.is_checked():
+                                # Use JavaScript click to bypass the overlay
+                                radio.evaluate("el => el.click()")
+                                print(f"   [Resume] Selected: {resume_dropdown_name}")
+                                return True
+                            else:
+                                print(f"   [Resume] Already selected: {resume_dropdown_name}")
+                                return True
+            except Exception as e:
                 continue
-                
-            # Find radio button within or near this row
-            radio = row.locator("input[type='radio']")
-            if radio.count() > 0:
-                if not radio.first.is_checked():
-                    radio.first.click()
-                    print(f"   [Resume] Selected: {resume_dropdown_name}")
-                    return True
-                else:
-                    print(f"   [Resume] Already selected: {resume_dropdown_name}")
-                    return True
         
-        # Method 2: Try clicking the label/row itself
-        resume_label = page.locator(f"label:has-text('{resume_dropdown_name}')")
-        if resume_label.count() > 0 and resume_label.first.is_visible():
-            resume_label.first.click()
-            print(f"   [Resume] Clicked label: {resume_dropdown_name}")
-            return True
-
-        # Method 3: Find by partial match (in case of slight differences)
-        # Extract base name without extension
-        base_name = resume_dropdown_name.replace(".pdf", "").replace(".PDF", "")
-        partial_match = page.locator(f"div:has-text('{base_name}')")
-        
-        for i in range(partial_match.count()):
-            row = partial_match.nth(i)
-            if not row.is_visible():
+        # Fallback: Try clicking by finding the card with our resume name
+        cards = page.locator("div[class*='jobs-document-upload']")
+        for i in range(cards.count()):
+            card = cards.nth(i)
+            if not card.is_visible():
                 continue
-            radio = row.locator("input[type='radio']")
-            if radio.count() > 0 and not radio.first.is_checked():
-                radio.first.click()
-                print(f"   [Resume] Selected (partial match): {base_name}")
-                return True
+            
+            card_text = card.inner_text()
+            if resume_dropdown_name.lower() in card_text.lower():
+                radio = card.locator("input[type='radio']")
+                if radio.count() > 0 and not radio.first.is_checked():
+                    radio.first.evaluate("el => el.click()")
+                    print(f"   [Resume] Selected via card: {resume_dropdown_name}")
+                    return True
 
         print(f"   [Resume] Could not find: {resume_dropdown_name}")
         return False
         
     except Exception as e:
-        print(f"   [Resume] Error selecting resume: {e}")
+        print(f"   [Resume] Error: {e}")
         return False
 
 
@@ -217,7 +211,7 @@ def detect_and_fill_fields(page, form_filler, job_title="", company="", resume_d
             continue
 
     # Select dropdowns
-    selects = page.locator("select")
+    selects = page.locator("select:visible")
     for i in range(selects.count()):
         try:
             field = selects.nth(i)
@@ -232,8 +226,12 @@ def detect_and_fill_fields(page, form_filler, job_title="", company="", resume_d
             else:
                 question = field.get_attribute("aria-label") or "Unknown dropdown"
 
+            # Skip ignored fields
+            if any(ignored in question.lower() for ignored in IGNORED_FIELDS):
+                continue
+
             current = field.input_value()
-            if current and current != "Select an option":
+            if current and current != "Select an option" and current != "":
                 continue
 
             answer, source = form_filler.get_answer(question, "select")
@@ -246,11 +244,31 @@ def detect_and_fill_fields(page, form_filler, job_title="", company="", resume_d
                     try:
                         field.select_option(value=answer)
                     except:
-                        form_filler.log_unknown_field(question, "select", job_title, company)
+                        # Capture all options for learning
+                        options = []
+                        try:
+                            option_els = field.locator("option")
+                            for j in range(option_els.count()):
+                                opt_text = option_els.nth(j).inner_text().strip()
+                                if opt_text and opt_text != "Select an option":
+                                    options.append(opt_text)
+                        except:
+                            pass
+                        form_filler.log_unknown_field(question, "select", job_title, company, options)
                         all_filled = False
                         unknown_count += 1
             else:
-                form_filler.log_unknown_field(question, "select", job_title, company)
+                # Capture all options for learning
+                options = []
+                try:
+                    option_els = field.locator("option")
+                    for j in range(option_els.count()):
+                        opt_text = option_els.nth(j).inner_text().strip()
+                        if opt_text and opt_text != "Select an option":
+                            options.append(opt_text)
+                except:
+                    pass
+                form_filler.log_unknown_field(question, "select", job_title, company, options)
                 all_filled = False
                 unknown_count += 1
         except:
