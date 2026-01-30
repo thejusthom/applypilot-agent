@@ -25,10 +25,10 @@ SEARCH_KEYWORDS = "software engineer new grad"
 SEARCH_LOCATION_ID = "103644278"  # United States
 EASY_APPLY_ONLY = True
 DISTANCE_MILES = 25
-TIME_FILTER = "r86400"  # r86400 = past 24h, r604800 = past week, r2592000 = past month
+TIME_FILTER = "r8640"  # r86400 = past 24h, r604800 = past week, r2592000 = past month
 
 # Agent behavior
-MAX_APPLICATIONS_PER_RUN = 20      # Stop after this many applications
+MAX_APPLICATIONS_PER_RUN = 100      # Stop after this many applications
 MAX_JOBS_TO_PROCESS = 50          # Max jobs to look at (including skips)
 ENABLE_PAGINATION = True          # Go to next page when current page is done
 MAX_PAGES = 3                     # Max pages to process if pagination enabled
