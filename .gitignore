@@ -34,3 +34,5 @@ jobs.db
 # Logs
 # -------------------------
 *.log
+field_memory.json
+application_log.json
