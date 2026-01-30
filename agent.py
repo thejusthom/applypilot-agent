@@ -44,7 +44,6 @@ def log_application(job_title, company, status, resume_type):
 
 def check_already_applied(page):
     """Check if we've already applied to this job."""
-    # LinkedIn shows "Applied" badge or disabled button
     applied_badge = page.locator("span.artdeco-inline-feedback__message:has-text('Applied')")
     applied_badge2 = page.locator("li-icon[type='success-pebble-icon']")
     applied_text = page.locator(".jobs-s-apply__application-link")
@@ -52,7 +51,6 @@ def check_already_applied(page):
     if applied_badge.count() > 0 or applied_badge2.count() > 0 or applied_text.count() > 0:
         return True
     
-    # Check button text
     apply_btn = page.locator("button.jobs-apply-button")
     if apply_btn.count() > 0:
         btn_text = apply_btn.first.inner_text().strip().lower()
@@ -73,9 +71,6 @@ def uncheck_follow_company(page):
                 checkbox.first.evaluate("el => el.click()")
                 print("   [Form] Unchecked 'Follow company'")
                 return True
-            else:
-                print("   [Form] 'Follow company' already unchecked")
-                return True
     except Exception as e:
         print(f"   [Form] Follow checkbox error: {e}")
     
@@ -85,6 +80,7 @@ def uncheck_follow_company(page):
 def select_resume_in_dropdown(page, resume_dropdown_name):
     """
     Select the correct resume from LinkedIn's resume list.
+    Clicks the card/row to properly trigger LinkedIn's form validation.
     """
     try:
         print(f"   [Resume] Looking for: {resume_dropdown_name}")
@@ -96,54 +92,82 @@ def select_resume_in_dropdown(page, resume_dropdown_name):
             print("   [Resume] Expanded resume list")
             random_sleep(1, 2)
         
-        # Find all visible radio buttons
+        # Find all download buttons - they contain the actual filename in aria-label
+        download_btns = page.locator("button[aria-label*='Download resume']")
+        btn_count = download_btns.count()
+        print(f"   [Resume] Found {btn_count} resume download buttons")
+        
+        if btn_count == 0:
+            print("   [Resume] No resume buttons found")
+            return False
+        
+        # Also get radio buttons
         radios = page.locator("input[type='radio'][id^='jobsDocumentCardToggle']:visible")
-        print(f"   [Resume] Found {radios.count()} resume radio buttons")
         
-        # For each radio, check the download button's aria-label (it has the real filename)
-        for i in range(radios.count()):
-            radio = radios.nth(i)
-            radio_id = radio.get_attribute("id")
-            
+        # First, print ALL resumes found for debugging
+        target_index = -1
+        for i in range(btn_count):
+            btn = download_btns.nth(i)
+            aria_label = btn.get_attribute("aria-label") or ""
+            print(f"   [Resume] [{i}] {aria_label}")
+            if resume_dropdown_name.lower() in aria_label.lower():
+                target_index = i
+        
+        if target_index == -1:
+            print(f"   [Resume] ✗ Could not find: {resume_dropdown_name}")
+            return False
+        
+        print(f"   [Resume] Target found at index {target_index}")
+        
+        # Check if already selected
+        if target_index < radios.count():
+            radio = radios.nth(target_index)
+            if radio.is_checked():
+                print(f"   [Resume] ✓ Already selected: {resume_dropdown_name}")
+                return True
+        
+        # METHOD 1: Try clicking the radio button directly with JS
+        if target_index < radios.count():
+            radio = radios.nth(target_index)
             try:
-                # The download button near this radio has aria-label with the actual filename
-                # e.g., "Download resume Thejus_Thomson_Resume.pdf"
-                # Get the parent card container
-                card = radio.locator("xpath=ancestor::div[contains(@class, 'jobs-document')]").first
-                if card:
-                    # Find the download button which has the real filename
-                    download_btn = card.locator("button[aria-label*='Download resume']")
-                    if download_btn.count() > 0:
-                        aria_label = download_btn.first.get_attribute("aria-label") or ""
-                        # aria_label is like "Download resume Thejus_Thomson_Resume.pdf"
-                        if resume_dropdown_name.lower() in aria_label.lower():
-                            if not radio.is_checked():
-                                # Use JavaScript click to bypass the overlay
-                                radio.evaluate("el => el.click()")
-                                print(f"   [Resume] Selected: {resume_dropdown_name}")
-                                return True
-                            else:
-                                print(f"   [Resume] Already selected: {resume_dropdown_name}")
-                                return True
-            except Exception as e:
-                continue
-        
-        # Fallback: Try clicking by finding the card with our resume name
-        cards = page.locator("div[class*='jobs-document-upload']")
-        for i in range(cards.count()):
-            card = cards.nth(i)
-            if not card.is_visible():
-                continue
-            
-            card_text = card.inner_text()
-            if resume_dropdown_name.lower() in card_text.lower():
-                radio = card.locator("input[type='radio']")
-                if radio.count() > 0 and not radio.first.is_checked():
-                    radio.first.evaluate("el => el.click()")
-                    print(f"   [Resume] Selected via card: {resume_dropdown_name}")
+                radio.evaluate("""el => {
+                    el.click();
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                }""")
+                random_sleep(0.5, 1)
+                
+                # Verify selection
+                if radio.is_checked():
+                    print(f"   [Resume] ✓ Selected via radio click: {resume_dropdown_name}")
                     return True
-
-        print(f"   [Resume] Could not find: {resume_dropdown_name}")
+                else:
+                    print(f"   [Resume] Radio click didn't work, trying card click...")
+            except Exception as e:
+                print(f"   [Resume] Radio click error: {e}")
+        
+        # METHOD 2: Find and click the parent card/row
+        btn = download_btns.nth(target_index)
+        card = btn.locator("xpath=ancestor::div[contains(@class, 'jobs-document-upload')]").first
+        
+        if card and card.is_visible():
+            card.click()
+            random_sleep(0.5, 1)
+            print(f"   [Resume] ✓ Clicked card for: {resume_dropdown_name}")
+            return True
+        
+        # METHOD 3: Click the label/text area
+        try:
+            resume_text = page.locator(f"text='{resume_dropdown_name}'").first
+            if resume_text and resume_text.is_visible():
+                resume_text.click()
+                random_sleep(0.5, 1)
+                print(f"   [Resume] ✓ Clicked text for: {resume_dropdown_name}")
+                return True
+        except:
+            pass
+        
+        print(f"   [Resume] ✗ All methods failed for: {resume_dropdown_name}")
         return False
         
     except Exception as e:
@@ -151,7 +175,7 @@ def select_resume_in_dropdown(page, resume_dropdown_name):
         return False
 
 
-def detect_and_fill_fields(page, form_filler, job_title="", company="", resume_dropdown_name=""):
+def detect_and_fill_fields(page, form_filler, job_title="", company=""):
     """Detect form fields and attempt to fill them."""
     all_filled = True
     unknown_count = 0
@@ -166,16 +190,11 @@ def detect_and_fill_fields(page, form_filler, job_title="", company="", resume_d
         "location"
     ]
 
-    # FIRST: Handle resume selection if we see resume-related elements
-    resume_section = page.locator("div[class*='resume'], div[class*='document'], h3:has-text('Resume')")
-    if resume_section.count() > 0 and resume_dropdown_name:
-        select_resume_in_dropdown(page, resume_dropdown_name)
-
-    # SECOND: Uncheck "Follow company" if present
+    # Uncheck "Follow company" if present
     uncheck_follow_company(page)
 
     # Text inputs
-    text_inputs = page.locator("input[type='text'], input:not([type])")
+    text_inputs = page.locator("input[type='text']:visible, input:not([type]):visible")
     for i in range(text_inputs.count()):
         try:
             field = text_inputs.nth(i)
@@ -274,8 +293,8 @@ def detect_and_fill_fields(page, form_filler, job_title="", company="", resume_d
         except:
             continue
 
-    # Radio buttons
-    fieldsets = page.locator("fieldset")
+    # Radio buttons (Yes/No questions and other radio groups)
+    fieldsets = page.locator("fieldset:visible")
     for i in range(fieldsets.count()):
         try:
             fieldset = fieldsets.nth(i)
@@ -288,29 +307,76 @@ def detect_and_fill_fields(page, form_filler, job_title="", company="", resume_d
 
             question = legend.first.inner_text().strip()
             
+            # Clean up duplicate text in question
+            lines = question.split('\n')
+            if len(lines) > 1 and lines[0].strip() == lines[1].strip():
+                question = lines[0].strip()
+            
+            # Skip ignored fields
+            if any(ignored in question.lower() for ignored in IGNORED_FIELDS):
+                continue
+            
+            # Check if already answered
             checked = fieldset.locator("input[type='radio']:checked")
             if checked.count() > 0:
                 continue
 
             answer, source = form_filler.get_answer(question, "radio")
 
+            # Capture all radio options - try multiple methods
+            options = []
+            
+            # Method 1: Labels inside fieldset
+            radio_labels = fieldset.locator("label")
+            for j in range(radio_labels.count()):
+                opt_text = radio_labels.nth(j).inner_text().strip()
+                if opt_text and opt_text.lower() not in ['required', '']:
+                    options.append(opt_text)
+            
+            # Method 2: If no labels found, try getting text near radio inputs
+            if not options:
+                radio_inputs = fieldset.locator("input[type='radio']")
+                for j in range(radio_inputs.count()):
+                    try:
+                        radio = radio_inputs.nth(j)
+                        parent = radio.locator("xpath=parent::*")
+                        if parent.count() > 0:
+                            text = parent.first.inner_text().strip()
+                            if text and text.lower() not in ['required', '']:
+                                options.append(text)
+                    except:
+                        pass
+            
+            # Method 3: Common Yes/No pattern
+            if not options:
+                fieldset_text = fieldset.inner_text().lower()
+                if 'yes' in fieldset_text and 'no' in fieldset_text:
+                    options = ['Yes', 'No']
+
             if answer:
-                radio_labels = fieldset.locator("label")
+                # Find the radio button with matching label
+                matched = False
                 for j in range(radio_labels.count()):
                     label_text = radio_labels.nth(j).inner_text().strip().lower()
                     if answer.lower() in label_text or label_text in answer.lower():
                         radio_labels.nth(j).click()
                         print(f"   [Fill] '{question[:30]}...' -> '{answer}' ({source})")
+                        matched = True
                         break
+                if not matched:
+                    form_filler.log_unknown_field(question, "radio", job_title, company, options)
+                    all_filled = False
+                    unknown_count += 1
             else:
-                form_filler.log_unknown_field(question, "radio", job_title, company)
+                form_filler.log_unknown_field(question, "radio", job_title, company, options)
                 all_filled = False
                 unknown_count += 1
-        except:
+
+        except Exception as e:
             continue
 
-    # Textareas
-    textareas = page.locator("textarea")
+    # Textareas (essay questions)
+    textareas = page.locator("textarea:visible")
     for i in range(textareas.count()):
         try:
             field = textareas.nth(i)
@@ -348,14 +414,30 @@ def handle_application_modal(page, form_filler, job_title="", company="", resume
     """Navigate through Easy Apply modal with form filling."""
     print("   [Form] Attempting to navigate form...")
     max_steps = 10
+    resume_selected = False
 
     for step in range(max_steps):
         random_sleep(1, 2)
 
-        # Fill fields on current step (we don't track unknown count anymore)
-        detect_and_fill_fields(
-            page, form_filler, job_title, company, resume_dropdown_name
-        )
+        # Try to select resume on first 3 steps if not already done
+        if step < 3 and resume_dropdown_name and not resume_selected:
+            # Check for resume section - look for resume radio buttons directly
+            resume_radios = page.locator("input[type='radio'][id^='jobsDocumentCardToggle']:visible")
+            resume_header = page.locator("h3:has-text('Resume'):visible")
+            upload_btn = page.locator("button:has-text('Upload resume'):visible")
+            
+            radio_count = resume_radios.count()
+            header_count = resume_header.count()
+            upload_count = upload_btn.count()
+            
+            print(f"   [Debug] Step {step+1} resume check: radios={radio_count}, header={header_count}, upload={upload_count}")
+            
+            if radio_count > 0 or header_count > 0 or upload_count > 0:
+                print(f"   [Resume] Resume section detected on step {step + 1}")
+                resume_selected = select_resume_in_dropdown(page, resume_dropdown_name)
+
+        # Fill fields on current step
+        detect_and_fill_fields(page, form_filler, job_title, company)
 
         # Check for "Submit application" button
         submit_btn = page.locator("button[aria-label='Submit application']")
@@ -421,7 +503,6 @@ def handle_application_modal(page, form_filler, job_title="", company="", resume
 def go_to_next_page(page):
     """Navigate to the next page of results. Returns True if successful."""
     try:
-        # Find current page number
         current_page = page.locator("button[aria-current='true']")
         if current_page.count() == 0:
             return False
@@ -429,7 +510,6 @@ def go_to_next_page(page):
         current_num = int(current_page.first.inner_text().strip())
         next_num = current_num + 1
         
-        # Click next page button
         next_page_btn = page.locator(f"button[aria-label='Page {next_num}']")
         if next_page_btn.count() > 0:
             next_page_btn.first.click()
@@ -502,7 +582,7 @@ def process_jobs_on_page(page, form_filler, stats):
             stats["already_applied"] += 1
             continue
 
-        # Select appropriate resume
+        # Select appropriate resume based on job title
         resume_type = form_filler.set_job_context(job_title)
         resume_dropdown_name = form_filler.get_resume_dropdown_name()
         print(f"   [Resume] Type: {resume_type} | Dropdown: {resume_dropdown_name}")
@@ -518,7 +598,9 @@ def process_jobs_on_page(page, form_filler, stats):
                 apply_btn.first.click()
                 random_sleep(2, 3)
 
-                success = handle_application_modal(page, form_filler, job_title, company)
+                success = handle_application_modal(
+                    page, form_filler, job_title, company, resume_dropdown_name
+                )
                 if success:
                     print("   [Apply] SUCCESS: Application submitted.")
                     stats["applied"] += 1
@@ -545,7 +627,6 @@ def main():
 
     # Build search URL
     search_url = build_search_url(keywords=args.keywords)
-    max_apps = args.limit or MAX_APPLICATIONS_PER_RUN
 
     # Initialize components
     browser = BrowserManager()
