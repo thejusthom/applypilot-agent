@@ -61,9 +61,11 @@ applypilot-agent/
 ├── form_filler.py        # Form field detection, filling, and memory management
 ├── resume_selector.py    # Resume type selection based on job keywords
 ├── learn_fields.py       # Interactive CLI to train unknown fields
-├── config.py             # Configuration settings (limits, delays, resume mappings)
+├── config.py             # Configuration settings (loads from .env)
 ├── debug_selectors.py    # Debug tool for testing LinkedIn selectors
-├── resume.json           # Your personal profile data for form filling
+├── .env.example          # Template for environment variables
+├── .env                  # Your personal config (not committed to git)
+├── .gitignore            # Ensures .env and personal data not committed
 ├── field_memory.json     # Learned question-answer pairs
 ├── application_log.json  # History of all applications
 ├── browser_profile/      # Playwright session storage (auto-created)
@@ -88,41 +90,35 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 ### 3. Install dependencies
 ```bash
-pip install playwright
+pip install playwright python-dotenv
 playwright install chromium
 ```
 
-### 4. Configure your profile
+### 4. Configure your environment
 
-Edit `resume.json` with your personal information:
-```json
-{
-  "personal": {
-    "first_name": "Your Name",
-    "last_name": "Your Last Name",
-    "email": "your.email@gmail.com",
-    "phone": "1234567890"
-  },
-  "work_authorization": {
-    "authorized_us": true,
-    "sponsorship_required": false
-  }
-}
+Copy the example environment file and fill in your personal information:
+```bash
+cp .env.example .env
 ```
 
-### 5. Configure resume mappings
+Edit `.env` with your details:
+```bash
+# Personal Information
+FIRST_NAME=John
+LAST_NAME=Doe
+EMAIL=johndoe@gmail.com
+PHONE=1234567890
 
-Edit `config.py` to match your LinkedIn resume filenames:
-```python
-RESUME_DROPDOWN_NAMES = {
-    "frontend": "YourName_Frontend.pdf",
-    "backend": "YourName_Backend.pdf",
-    "sre": "YourName_SRE.pdf",
-    "fullstack": "YourName_FullStack.pdf"
-}
+# Resume Filenames (must match EXACTLY what's in LinkedIn)
+RESUME_FRONTEND=JohnDoe_Frontend.pdf
+RESUME_BACKEND=JohnDoe_Backend.pdf
+RESUME_SRE=JohnDoe_SRE.pdf
+RESUME_FULLSTACK=JohnDoe_FullStack.pdf
 ```
 
-### 6. First run - Login to LinkedIn
+> ⚠️ **Important:** Never commit your `.env` file. It's already in `.gitignore`.
+
+### 5. First run - Login to LinkedIn
 ```bash
 python agent.py
 ```
