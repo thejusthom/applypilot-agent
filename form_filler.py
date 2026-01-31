@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from difflib import SequenceMatcher
 from resume_selector import ResumeSelector
+from config import get_resume_data
 
 class FormFiller:
     """
@@ -9,10 +10,9 @@ class FormFiller:
     Learns from unknown fields and stores answers for reuse.
     """
 
-    def __init__(self, resume_path="resume.json", memory_path="field_memory.json"):
-        self.resume_path = Path(resume_path)
+    def __init__(self, memory_path="field_memory.json"):
         self.memory_path = Path(memory_path)
-        self.resume = self._load_json(self.resume_path, {})
+        self.resume = get_resume_data()  # Load from environment variables
         self.memory = self._load_json(self.memory_path, {
             "known_fields": {},
             "unknown_fields": [],
@@ -22,8 +22,8 @@ class FormFiller:
         self.current_resume_type = "fullstack"
         
         # Validate resume loaded
-        if not self.resume:
-            print("[Warning] resume.json not found or empty. Form filling may fail.")
+        if not self.resume.get("personal", {}).get("first_name"):
+            print("[Warning] Personal info not found in .env file. Form filling may fail.")
 
     def _load_json(self, path, default):
         if path.exists():
@@ -163,13 +163,7 @@ class FormFiller:
     def set_job_context(self, job_title, job_description=""):
         """Set the current job context to determine which resume PDF to use."""
         self.current_resume_type = self.resume_selector.get_resume_type(job_title, job_description)
-        
-        # Try to load type-specific resume, fall back to main resume.json
-        resume_data, _ = self.resume_selector.select(job_title, job_description)
-        if resume_data:
-            self.resume = resume_data
-        # If no type-specific resume found, keep using the main resume.json
-        
+        # Resume data stays the same (from .env), only the PDF selection changes
         return self.current_resume_type
 
     def get_resume_dropdown_name(self):

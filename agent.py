@@ -9,7 +9,7 @@ from form_filler import FormFiller
 from config import (
     build_search_url, MAX_APPLICATIONS_PER_RUN, MAX_JOBS_TO_PROCESS,
     ENABLE_PAGINATION, MAX_PAGES, MIN_DELAY_SECONDS, MAX_DELAY_SECONDS,
-    APPLICATION_LOG_PATH
+    APPLICATION_LOG_PATH, PREFERRED_EMAIL
 )
 from playwright.sync_api import TimeoutError
 
@@ -189,9 +189,6 @@ def detect_and_fill_fields(page, form_filler, job_title="", company=""):
         "city, state, or zip code",
         "location"
     ]
-    
-    # Preferred email for selection from dropdowns
-    PREFERRED_EMAIL = "thomsonthejus@gmail.com"
 
     # Uncheck "Follow company" if present
     uncheck_follow_company(page)
@@ -211,7 +208,7 @@ def detect_and_fill_fields(page, form_filler, job_title="", company=""):
                 label_text = label_text.lower()
             
             # Check if this is an email field
-            if "email" in label_text:
+            if "email" in label_text and PREFERRED_EMAIL:
                 try:
                     field.select_option(label=PREFERRED_EMAIL)
                     print(f"   [Fill] Email dropdown -> '{PREFERRED_EMAIL}'")
