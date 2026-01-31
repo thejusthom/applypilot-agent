@@ -25,17 +25,17 @@ SEARCH_KEYWORDS = "software engineer new grad"
 SEARCH_LOCATION_ID = "103644278"  # United States
 EASY_APPLY_ONLY = True
 DISTANCE_MILES = 25
-TIME_FILTER = "r8640"  # r86400 = past 24h, r604800 = past week, r2592000 = past month
+TIME_FILTER = "r86400"  # r86400 = past 24h, r604800 = past week, r2592000 = past month
 
 # Agent behavior
-MAX_APPLICATIONS_PER_RUN = 100      # Stop after this many applications
-MAX_JOBS_TO_PROCESS = 50          # Max jobs to look at (including skips)
-ENABLE_PAGINATION = True          # Go to next page when current page is done
-MAX_PAGES = 3                     # Max pages to process if pagination enabled
+MAX_APPLICATIONS_PER_RUN = 25      # Keep under 30 to avoid LinkedIn rate limits
+MAX_JOBS_TO_PROCESS = 75           # Max jobs to look at (including skips)
+ENABLE_PAGINATION = True           # Go to next page when current page is done
+MAX_PAGES = 5                      # Max pages to process if pagination enabled
 
-# Safety settings
-MIN_DELAY_SECONDS = 2
-MAX_DELAY_SECONDS = 5
+# Safety settings - longer delays to appear more human
+MIN_DELAY_SECONDS = 3
+MAX_DELAY_SECONDS = 7
 SKIP_IF_UNKNOWN_FIELDS = True     # Skip application if there are unfillable fields
 
 # Paths
