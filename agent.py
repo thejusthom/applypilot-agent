@@ -63,24 +63,23 @@ def check_already_applied(page):
 def uncheck_follow_company(page):
     """Uncheck the 'Follow company' checkbox if present."""
     try:
-        # Direct ID selector - LinkedIn uses 'follow-company-checkbox'
         checkbox = page.locator("#follow-company-checkbox")
         if checkbox.count() > 0 and checkbox.first.is_visible():
             if checkbox.first.is_checked():
-                # Use JavaScript click to bypass any overlay issues
                 checkbox.first.evaluate("el => el.click()")
                 print("   [Form] Unchecked 'Follow company'")
                 return True
     except Exception as e:
         print(f"   [Form] Follow checkbox error: {e}")
-    
     return False
 
 
 def select_resume_in_dropdown(page, resume_dropdown_name):
     """
     Select the correct resume from LinkedIn's resume list.
-    Clicks the card/row to properly trigger LinkedIn's form validation.
+    Clicks the card AND ensures radio is selected.
+    
+    FIX: Check if already selected BEFORE clicking to avoid toggling off.
     """
     try:
         print(f"   [Resume] Looking for: {resume_dropdown_name}")
@@ -88,11 +87,11 @@ def select_resume_in_dropdown(page, resume_dropdown_name):
         # FIRST: Expand the resume list if collapsed
         expand_btn = page.locator("button:has-text('more resumes')")
         if expand_btn.count() > 0 and expand_btn.first.is_visible():
-            expand_btn.first.click()
+            expand_btn.first.click(force=True)
             print("   [Resume] Expanded resume list")
             random_sleep(1, 2)
         
-        # Find all download buttons - they contain the actual filename in aria-label
+        # Find download buttons to identify which resume is which
         download_btns = page.locator("button[aria-label*='Download resume']")
         btn_count = download_btns.count()
         print(f"   [Resume] Found {btn_count} resume download buttons")
@@ -101,10 +100,7 @@ def select_resume_in_dropdown(page, resume_dropdown_name):
             print("   [Resume] No resume buttons found")
             return False
         
-        # Also get radio buttons
-        radios = page.locator("input[type='radio'][id^='jobsDocumentCardToggle']:visible")
-        
-        # First, print ALL resumes found for debugging
+        # Find target index
         target_index = -1
         for i in range(btn_count):
             btn = download_btns.nth(i)
@@ -114,61 +110,82 @@ def select_resume_in_dropdown(page, resume_dropdown_name):
                 target_index = i
         
         if target_index == -1:
-            print(f"   [Resume] ✗ Could not find: {resume_dropdown_name}")
+            print(f"   [Resume] [X] Could not find: {resume_dropdown_name}")
             return False
         
         print(f"   [Resume] Target found at index {target_index}")
         
-        # Check if already selected
-        if target_index < radios.count():
-            radio = radios.nth(target_index)
-            if radio.is_checked():
-                print(f"   [Resume] ✓ Already selected: {resume_dropdown_name}")
-                return True
+        # Get the radio buttons FIRST to check current state
+        radios = page.locator("input[type='radio'][id^='jobsDocumentCardToggle']:visible")
         
-        # METHOD 1: Try clicking the radio button directly with JS
-        if target_index < radios.count():
-            radio = radios.nth(target_index)
-            try:
-                radio.evaluate("""el => {
-                    el.click();
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                }""")
-                random_sleep(0.5, 1)
-                
-                # Verify selection
-                if radio.is_checked():
-                    print(f"   [Resume] ✓ Selected via radio click: {resume_dropdown_name}")
-                    return True
-                else:
-                    print(f"   [Resume] Radio click didn't work, trying card click...")
-            except Exception as e:
-                print(f"   [Resume] Radio click error: {e}")
+        if target_index >= radios.count():
+            print(f"   [Resume] [X] Radio index {target_index} out of range (found {radios.count()} radios)")
+            return False
         
-        # METHOD 2: Find and click the parent card/row
-        btn = download_btns.nth(target_index)
-        card = btn.locator("xpath=ancestor::div[contains(@class, 'jobs-document-upload')]").first
+        radio = radios.nth(target_index)
         
-        if card and card.is_visible():
-            card.click()
-            random_sleep(0.5, 1)
-            print(f"   [Resume] ✓ Clicked card for: {resume_dropdown_name}")
+        # FIX: Check if already selected BEFORE doing anything
+        # This prevents toggling off an already-selected resume
+        if radio.is_checked():
+            print(f"   [Resume] [OK] Already selected: {resume_dropdown_name}")
             return True
         
-        # METHOD 3: Click the label/text area
-        try:
-            resume_text = page.locator(f"text='{resume_dropdown_name}'").first
-            if resume_text and resume_text.is_visible():
-                resume_text.click()
-                random_sleep(0.5, 1)
-                print(f"   [Resume] ✓ Clicked text for: {resume_dropdown_name}")
-                return True
-        except:
-            pass
+        # Not selected - need to click to select it
+        print(f"   [Resume] Not currently selected, attempting to select...")
         
-        print(f"   [Resume] ✗ All methods failed for: {resume_dropdown_name}")
-        return False
+        # Get the target download button for card navigation
+        target_btn = download_btns.nth(target_index)
+        
+        # STEP 1: Try clicking the card/row to select it
+        try:
+            card = target_btn.locator("xpath=ancestor::div[contains(@class, 'jobs-document-upload-redesign-card') or contains(@class, 'document-upload')][1]")
+            if card.count() > 0:
+                card.first.click(force=True)
+                print("   [Resume] [OK] Clicked card container")
+                random_sleep(0.3, 0.5)
+                
+                # Check if that worked
+                if radio.is_checked():
+                    print(f"   [Resume] [OK] Successfully selected via card click: {resume_dropdown_name}")
+                    return True
+        except Exception as e:
+            print(f"   [Resume] Card click error: {e}")
+        
+        # STEP 2: Card click didn't work, try clicking the radio directly
+        try:
+            radio.click(force=True)
+            random_sleep(0.3, 0.5)
+            print("   [Resume] [OK] Clicked radio button")
+            
+            if radio.is_checked():
+                print(f"   [Resume] [OK] Successfully selected via radio click: {resume_dropdown_name}")
+                return True
+        except Exception as e:
+            print(f"   [Resume] Radio click error: {e}")
+        
+        # STEP 3: Force with JavaScript as last resort
+        try:
+            radio.evaluate("""el => {
+                el.checked = true;
+                el.click();
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }""")
+            random_sleep(0.3, 0.5)
+            print("   [Resume] [OK] Forced radio via JS")
+            
+            if radio.is_checked():
+                print(f"   [Resume] [OK] Successfully selected via JS: {resume_dropdown_name}")
+                return True
+        except Exception as e:
+            print(f"   [Resume] JS force error: {e}")
+        
+        # Final check
+        if radio.is_checked():
+            print(f"   [Resume] [OK] Successfully selected: {resume_dropdown_name}")
+            return True
+        else:
+            print(f"   [Resume] [WARN] Could not confirm selection, but continuing...")
+            return True  # Continue anyway, might still work
         
     except Exception as e:
         print(f"   [Resume] Error: {e}")
@@ -180,7 +197,6 @@ def detect_and_fill_fields(page, form_filler, job_title="", company=""):
     all_filled = True
     unknown_count = 0
     
-    # Fields to ignore (not actual application fields)
     IGNORED_FIELDS = [
         "search by title",
         "search by skill", 
@@ -193,7 +209,7 @@ def detect_and_fill_fields(page, form_filler, job_title="", company=""):
     # Uncheck "Follow company" if present
     uncheck_follow_company(page)
     
-    # Handle email dropdowns specifically (LinkedIn shows saved emails as dropdown)
+    # Handle email dropdowns specifically
     email_selects = page.locator("select:visible")
     for i in range(email_selects.count()):
         try:
@@ -207,7 +223,6 @@ def detect_and_fill_fields(page, form_filler, job_title="", company=""):
                 label_text = field.get_attribute("aria-label") or ""
                 label_text = label_text.lower()
             
-            # Check if this is an email field
             if "email" in label_text and PREFERRED_EMAIL:
                 try:
                     field.select_option(label=PREFERRED_EMAIL)
@@ -237,7 +252,6 @@ def detect_and_fill_fields(page, form_filler, job_title="", company=""):
             else:
                 question = field.get_attribute("placeholder") or field.get_attribute("aria-label") or "Unknown field"
 
-            # Skip ignored fields
             if any(ignored in question.lower() for ignored in IGNORED_FIELDS):
                 continue
 
@@ -273,8 +287,11 @@ def detect_and_fill_fields(page, form_filler, job_title="", company=""):
             else:
                 question = field.get_attribute("aria-label") or "Unknown dropdown"
 
-            # Skip ignored fields
             if any(ignored in question.lower() for ignored in IGNORED_FIELDS):
+                continue
+            
+            # Skip if it's the email dropdown (already handled)
+            if "email" in question.lower():
                 continue
 
             current = field.input_value()
@@ -291,7 +308,6 @@ def detect_and_fill_fields(page, form_filler, job_title="", company=""):
                     try:
                         field.select_option(value=answer)
                     except:
-                        # Capture all options for learning
                         options = []
                         try:
                             option_els = field.locator("option")
@@ -305,7 +321,6 @@ def detect_and_fill_fields(page, form_filler, job_title="", company=""):
                         all_filled = False
                         unknown_count += 1
             else:
-                # Capture all options for learning
                 options = []
                 try:
                     option_els = field.locator("option")
@@ -321,7 +336,7 @@ def detect_and_fill_fields(page, form_filler, job_title="", company=""):
         except:
             continue
 
-    # Radio buttons (Yes/No questions and other radio groups)
+    # Radio buttons
     fieldsets = page.locator("fieldset:visible")
     for i in range(fieldsets.count()):
         try:
@@ -335,54 +350,32 @@ def detect_and_fill_fields(page, form_filler, job_title="", company=""):
 
             question = legend.first.inner_text().strip()
             
-            # Clean up duplicate text in question
             lines = question.split('\n')
             if len(lines) > 1 and lines[0].strip() == lines[1].strip():
                 question = lines[0].strip()
             
-            # Skip ignored fields
             if any(ignored in question.lower() for ignored in IGNORED_FIELDS):
                 continue
             
-            # Check if already answered
             checked = fieldset.locator("input[type='radio']:checked")
             if checked.count() > 0:
                 continue
 
             answer, source = form_filler.get_answer(question, "radio")
 
-            # Capture all radio options - try multiple methods
             options = []
-            
-            # Method 1: Labels inside fieldset
             radio_labels = fieldset.locator("label")
             for j in range(radio_labels.count()):
                 opt_text = radio_labels.nth(j).inner_text().strip()
                 if opt_text and opt_text.lower() not in ['required', '']:
                     options.append(opt_text)
             
-            # Method 2: If no labels found, try getting text near radio inputs
-            if not options:
-                radio_inputs = fieldset.locator("input[type='radio']")
-                for j in range(radio_inputs.count()):
-                    try:
-                        radio = radio_inputs.nth(j)
-                        parent = radio.locator("xpath=parent::*")
-                        if parent.count() > 0:
-                            text = parent.first.inner_text().strip()
-                            if text and text.lower() not in ['required', '']:
-                                options.append(text)
-                    except:
-                        pass
-            
-            # Method 3: Common Yes/No pattern
             if not options:
                 fieldset_text = fieldset.inner_text().lower()
                 if 'yes' in fieldset_text and 'no' in fieldset_text:
                     options = ['Yes', 'No']
 
             if answer:
-                # Find the radio button with matching label
                 matched = False
                 for j in range(radio_labels.count()):
                     label_text = radio_labels.nth(j).inner_text().strip().lower()
@@ -400,10 +393,10 @@ def detect_and_fill_fields(page, form_filler, job_title="", company=""):
                 all_filled = False
                 unknown_count += 1
 
-        except Exception as e:
+        except:
             continue
 
-    # Textareas (essay questions)
+    # Textareas
     textareas = page.locator("textarea:visible")
     for i in range(textareas.count()):
         try:
@@ -449,7 +442,6 @@ def handle_application_modal(page, form_filler, job_title="", company="", resume
 
         # Try to select resume on first 3 steps if not already done
         if step < 3 and resume_dropdown_name and not resume_selected:
-            # Check for resume section - look for resume radio buttons directly
             resume_radios = page.locator("input[type='radio'][id^='jobsDocumentCardToggle']:visible")
             resume_header = page.locator("h3:has-text('Resume'):visible")
             upload_btn = page.locator("button:has-text('Upload resume'):visible")
@@ -470,7 +462,6 @@ def handle_application_modal(page, form_filler, job_title="", company="", resume
         # Check for "Submit application" button
         submit_btn = page.locator("button[aria-label='Submit application']")
         if submit_btn.count() > 0 and submit_btn.first.is_visible():
-            # Check for validation errors before submitting
             error_msg = page.locator("div.artdeco-inline-feedback--error")
             if error_msg.count() > 0 and error_msg.first.is_visible():
                 print("   [Form] Validation error on submit page. Skipping.")
@@ -490,7 +481,6 @@ def handle_application_modal(page, form_filler, job_title="", company="", resume
         review_btn = page.locator("button[aria-label='Review your application']")
 
         if next_btn.count() > 0 and next_btn.first.is_visible():
-            # Check for validation errors before clicking Next
             error_msg = page.locator("div.artdeco-inline-feedback--error")
             if error_msg.count() > 0 and error_msg.first.is_visible():
                 print(f"   [Form] Step {step+1}: Validation error. Cannot proceed.")
@@ -501,7 +491,6 @@ def handle_application_modal(page, form_filler, job_title="", company="", resume
             random_sleep(1, 2)
 
         elif review_btn.count() > 0 and review_btn.first.is_visible():
-            # Check for validation errors before clicking Review
             error_msg = page.locator("div.artdeco-inline-feedback--error")
             if error_msg.count() > 0 and error_msg.first.is_visible():
                 print(f"   [Form] Step {step+1}: Validation error. Cannot proceed.")
@@ -529,7 +518,7 @@ def handle_application_modal(page, form_filler, job_title="", company="", resume
 
 
 def go_to_next_page(page):
-    """Navigate to the next page of results. Returns True if successful."""
+    """Navigate to the next page of results."""
     try:
         current_page = page.locator("button[aria-current='true']")
         if current_page.count() == 0:
@@ -550,10 +539,9 @@ def go_to_next_page(page):
 
 
 def process_jobs_on_page(page, form_filler, stats):
-    """Process all jobs on current page. Returns updated stats."""
+    """Process all jobs on current page."""
     card_selector = "div.job-card-container"
     
-    # Scroll to load jobs
     job_list = page.locator("div.job-card-list")
     if job_list.count() > 0:
         job_list.first.hover()
@@ -566,7 +554,6 @@ def process_jobs_on_page(page, form_filler, stats):
     print(f"[ApplyPilot] Found {count} job cards on this page.")
 
     for idx in range(count):
-        # Check limits
         if stats["applied"] >= MAX_APPLICATIONS_PER_RUN:
             print(f"\n[ApplyPilot] Reached max applications ({MAX_APPLICATIONS_PER_RUN}). Stopping.")
             return stats, True
@@ -604,18 +591,16 @@ def process_jobs_on_page(page, form_filler, stats):
 
         print(f"   [Job] {job_title} at {company}" if job_title else "   [Job] Unknown position")
 
-        # Check if already applied
         if check_already_applied(page):
             print("   [Skip] Already applied to this job.")
             stats["already_applied"] += 1
             continue
 
-        # Select appropriate resume based on job title
+        # Select appropriate resume
         resume_type = form_filler.set_job_context(job_title)
         resume_dropdown_name = form_filler.get_resume_dropdown_name()
         print(f"   [Resume] Type: {resume_type} | Dropdown: {resume_dropdown_name}")
 
-        # Look for Easy Apply button
         apply_btn = page.locator("button.jobs-apply-button")
 
         if apply_btn.count() > 0:
@@ -653,10 +638,8 @@ def main():
     parser.add_argument("--limit", type=int, help="Max applications to submit")
     args = parser.parse_args()
 
-    # Build search URL
     search_url = build_search_url(keywords=args.keywords)
-
-    # Initialize components
+    
     browser = BrowserManager()
     form_filler = FormFiller()
 
@@ -705,7 +688,6 @@ def main():
     except Exception as e:
         print(f"[ApplyPilot] Error: {e}")
 
-    # Summary
     print(f"\n{'='*50}")
     print("[ApplyPilot] Session Complete")
     print(f"{'='*50}")
